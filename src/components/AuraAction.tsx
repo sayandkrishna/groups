@@ -20,30 +20,42 @@ const AuraAction = ({ onClose, users, currentUser, onAction }: AuraActionProps) 
     const [type, setType] = useState<'glaze' | 'roast'>('glaze');
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // Sort users: Friends first, then everyone else
+    // Filter to show only friends
     const friendIds = currentUser?.friends || [];
-    const sortedUsers = [...users].sort((a, b) => {
-        const aIsFriend = friendIds.includes(a.id);
-        const bIsFriend = friendIds.includes(b.id);
-        if (aIsFriend && !bIsFriend) return -1;
-        if (!aIsFriend && bIsFriend) return 1;
-        return 0;
-    });
+    const friendUsers = users.filter(u =>
+        friendIds.includes(u.id) && u.id !== currentUser?.uid
+    );
 
     const handleSubmit = async () => {
         if (!selectedUser || !reason || isProcessing) return;
 
         setIsProcessing(true);
-        let finalReason = reason;
 
-        if (reason.startsWith('/slang ')) {
-            finalReason = await translateToSlang(reason.replace('/slang ', ''));
+        try {
+            let finalReason = reason;
+
+            // Handle AI translation if requested
+            if (reason.startsWith('/slang ')) {
+                try {
+                    finalReason = await translateToSlang(reason.replace('/slang ', ''));
+                } catch (err) {
+                    console.error('AI translation failed, using original reason:', err);
+                    finalReason = reason.replace('/slang ', '');
+                }
+            }
+
+            const finalAmount = type === 'glaze' ? Math.abs(amount) : -Math.abs(amount);
+
+            // Submit transaction
+            await onAction(selectedUser, finalAmount, finalReason);
+
+            // Close modal immediately after transaction is confirmed
+            onClose();
+        } catch (err) {
+            console.error('Transaction failed:', err);
+            setIsProcessing(false);
+            // Could show an error message to user here
         }
-
-        const finalAmount = type === 'glaze' ? Math.abs(amount) : -Math.abs(amount);
-        await onAction(selectedUser, finalAmount, finalReason);
-        setIsProcessing(false);
-        onClose();
     };
 
     return (
@@ -85,9 +97,9 @@ const AuraAction = ({ onClose, users, currentUser, onAction }: AuraActionProps) 
                             onChange={(e) => setSelectedUser(e.target.value)}
                         >
                             <option value="">Select a victim...</option>
-                            {sortedUsers.filter(u => u.id !== currentUser?.uid).map(u => (
+                            {friendUsers.map(u => (
                                 <option key={u.id} value={u.id}>
-                                    {friendIds.includes(u.id) ? '★ ' : ''}{u.handle} ({u.aura})
+                                    {u.handle} ({u.aura})
                                 </option>
                             ))}
                         </select>
@@ -95,19 +107,102 @@ const AuraAction = ({ onClose, users, currentUser, onAction }: AuraActionProps) 
 
                     {/* Amount Slider */}
                     <div>
-                        <label className="font-bold text-xs uppercase block mb-1">Magnitude: {amount}</label>
-                        <input
-                            type="range"
-                            min="10"
-                            max="10000"
-                            step="10"
-                            value={amount}
-                            onChange={(e) => setAmount(parseInt(e.target.value))}
-                            className="w-full accent-black h-4 bg-gray-200 rounded-none appearance-none border-2 border-black"
-                        />
-                        <div className="flex justify-between text-xs font-mono mt-1 opacity-60">
-                            <span>Mild</span>
-                            <span>Celestial</span>
+                        <label
+                            className="font-bold text-xs uppercase block mb-1 transition-colors duration-300"
+                            style={{
+                                color: (() => {
+                                    const percent = (amount - 10) / (10000 - 10);
+
+                                    // Helper for linear interpolation between two hex colors
+                                    const interpolate = (color1: string, color2: string, factor: number) => {
+                                        const c1 = parseInt(color1.slice(1), 16);
+                                        const c2 = parseInt(color2.slice(1), 16);
+
+                                        const r1 = (c1 >> 16) & 255, g1 = (c1 >> 8) & 255, b1 = c1 & 255;
+                                        const r2 = (c2 >> 16) & 255, g2 = (c2 >> 8) & 255, b2 = c2 & 255;
+
+                                        const r = Math.round(r1 + (r2 - r1) * factor);
+                                        const g = Math.round(g1 + (g2 - g1) * factor);
+                                        const b = Math.round(b1 + (b2 - b1) * factor);
+
+                                        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                                    };
+
+                                    if (percent < 0.33) return interpolate('#4ADE80', '#FACC15', percent / 0.33); // Green -> Yellow
+                                    if (percent < 0.66) return interpolate('#FACC15', '#FF4D00', (percent - 0.33) / 0.33); // Yellow -> Orange
+                                    return interpolate('#FF4D00', '#D946EF', (percent - 0.66) / 0.34); // Orange -> Purple
+                                })()
+                            }}
+                        >
+                            Magnitude: {amount}
+                        </label>
+                        <div className="relative h-6 w-full flex items-center">
+                            <input
+                                type="range"
+                                min="10"
+                                max="10000"
+                                step="10"
+                                value={amount}
+                                onChange={(e) => setAmount(parseInt(e.target.value))}
+                                className="w-full h-4 rounded-none appearance-none border-2 border-black relative z-10 bg-transparent cursor-pointer"
+                                style={{
+                                    background: (() => {
+                                        const percent = (amount - 10) / (10000 - 10);
+
+                                        // Same interpolation helper
+                                        const interpolate = (color1: string, color2: string, factor: number) => {
+                                            const c1 = parseInt(color1.slice(1), 16);
+                                            const c2 = parseInt(color2.slice(1), 16);
+
+                                            const r1 = (c1 >> 16) & 255, g1 = (c1 >> 8) & 255, b1 = c1 & 255;
+                                            const r2 = (c2 >> 16) & 255, g2 = (c2 >> 8) & 255, b2 = c2 & 255;
+
+                                            const r = Math.round(r1 + (r2 - r1) * factor);
+                                            const g = Math.round(g1 + (g2 - g1) * factor);
+                                            const b = Math.round(b1 + (b2 - b1) * factor);
+
+                                            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                                        };
+
+                                        let color;
+                                        if (percent < 0.33) color = interpolate('#4ADE80', '#FACC15', percent / 0.33);
+                                        else if (percent < 0.66) color = interpolate('#FACC15', '#FF4D00', (percent - 0.33) / 0.33);
+                                        else color = interpolate('#FF4D00', '#D946EF', (percent - 0.66) / 0.34);
+
+                                        return `linear-gradient(to right, ${color} 0%, ${color} ${percent * 100}%, #E5E7EB ${percent * 100}%, #E5E7EB 100%)`;
+                                    })()
+                                }}
+                            />
+                            {/* Glow Effect */}
+                            <div
+                                className="absolute inset-0 blur-md opacity-50 transition-colors duration-300 pointer-events-none"
+                                style={{
+                                    background: (() => {
+                                        const percent = (amount - 10) / (10000 - 10);
+
+                                        const interpolate = (color1: string, color2: string, factor: number) => {
+                                            const c1 = parseInt(color1.slice(1), 16);
+                                            const c2 = parseInt(color2.slice(1), 16);
+                                            const r1 = (c1 >> 16) & 255, g1 = (c1 >> 8) & 255, b1 = c1 & 255;
+                                            const r2 = (c2 >> 16) & 255, g2 = (c2 >> 8) & 255, b2 = c2 & 255;
+                                            const r = Math.round(r1 + (r2 - r1) * factor);
+                                            const g = Math.round(g1 + (g2 - g1) * factor);
+                                            const b = Math.round(b1 + (b2 - b1) * factor);
+                                            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                                        };
+
+                                        if (percent < 0.33) return interpolate('#4ADE80', '#FACC15', percent / 0.33);
+                                        if (percent < 0.66) return interpolate('#FACC15', '#FF4D00', (percent - 0.33) / 0.33);
+                                        return interpolate('#FF4D00', '#D946EF', (percent - 0.66) / 0.34);
+                                    })()
+                                }}
+                            />
+                        </div>
+                        <div className="flex justify-between text-xs font-mono mt-2 opacity-80 font-bold transition-colors duration-300">
+                            <span className="text-green-500">Mild</span>
+                            <span className="text-yellow-500">Spicy</span>
+                            <span className="text-orange-500">Nuclear</span>
+                            <span className="text-purple-500">Celestial</span>
                         </div>
                     </div>
 
