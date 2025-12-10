@@ -1,5 +1,7 @@
 # AURA BEAM ✨
 
+![AURA BEAM Banner](./banner_readme/WhatsApp%20Image%202025-12-10%20at%2019.01.40_1972fa02.jpg)
+
 A real-time social aura tracking app where friends can give or take "aura points" from each other with reasons. Built with React, Firebase, and AI-powered sentiment detection.
 
 ## 🌟 Features
