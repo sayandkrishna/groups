@@ -13,10 +13,16 @@ export const THEME = {
   shadowActive: 'active:shadow-[0px_0px_0px_0px_rgba(0,0,0,1)] active:translate-x-[4px] active:translate-y-[4px]',
 };
 
+// Avatar seeds
+export const AVATAR_SEEDS = ['😺', '👽', '💀', '🤖', '👾', '🤡', '👹', '👺', '👻'];
+
 // Utility functions
 export const generateAvatar = (name: string): string => {
-  const seeds = ['😺', '👽', '💀', '🤖', '👾', '🤡', '👹', '👺', '👻'];
-  return seeds[name.length % seeds.length];
+  return AVATAR_SEEDS[name.length % AVATAR_SEEDS.length];
+};
+
+export const getAllAvatars = (): string[] => {
+  return AVATAR_SEEDS;
 };
 
 export const formatAura = (num: number): string => {

@@ -35,6 +35,7 @@ import FeedTab from './components/tabs/FeedTab';
 import LeaderboardTab from './components/tabs/LeaderboardTab';
 import FriendsTab from './components/tabs/FriendsTab';
 import ChatInterface from './components/ChatInterface';
+import SettingsPage from './components/SettingsPage';
 
 const App = () => {
     const [user, setUser] = useState<User | null>(null);
@@ -45,6 +46,7 @@ const App = () => {
     const [loading, setLoading] = useState(true);
     const [needsCodename, setNeedsCodename] = useState(false);
     const [chatPartner, setChatPartner] = useState<UserListItem | null>(null);
+    const [showSettings, setShowSettings] = useState(false);
 
     // --- AUTH & DATA SYNC ---
     useEffect(() => {
@@ -240,6 +242,18 @@ const App = () => {
     const myFriends = usersList.filter(u => user.friends?.includes(u.id));
     const incomingRequests = usersList.filter(u => user.friendRequests?.includes(u.id));
 
+    // Settings View
+    if (showSettings) {
+        return (
+            <div className="h-screen max-w-lg mx-auto sm:border-x-2 border-black">
+                <SettingsPage
+                    user={user}
+                    onBack={() => setShowSettings(false)}
+                />
+            </div>
+        );
+    }
+
     // Chat View
     if (currentTab === 'chat' && chatPartner) {
         return (
@@ -256,13 +270,13 @@ const App = () => {
     return (
         <div className={`h-screen ${THEME.bg} font-sans flex flex-col w-full max-w-lg mx-auto sm:border-x-2 border-black`}>
             <Marquee />
-            <Header user={user} myRank={myRank} />
+            <Header user={user} myRank={myRank} onSettingsClick={() => setShowSettings(true)} />
             <Tabs currentTab={currentTab} setCurrentTab={(tab) => { setCurrentTab(tab); setChatPartner(null); }} />
 
             <div className="flex-1 overflow-y-auto pb-24 relative">
                 <AnimatePresence mode="wait">
                     {currentTab === 'feed' && (
-                        <FeedTab feed={feed} users={usersList} />
+                        <FeedTab feed={feed} users={usersList} currentUser={user} />
                     )}
                     {currentTab === 'leaderboard' && (
                         <LeaderboardTab users={usersList} />

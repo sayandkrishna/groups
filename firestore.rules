@@ -11,11 +11,14 @@ service cloud.firestore {
       allow create: if request.auth != null && request.auth.uid == userId;
       
       // Users can update their own profile
-      // OR other users can update friendRequests/sentRequests arrays
+      // OR other users can update friendRequests/sentRequests/friends arrays
+      // OR other authenticated users can update the aura field (for transactions)
       allow update: if request.auth != null && (
         request.auth.uid == userId ||
-        // Allow other users to add themselves to friendRequests
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendRequests', 'sentRequests', 'friends']))
+        // Allow other users to add themselves to friend-related fields
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendRequests', 'sentRequests', 'friends'])) ||
+        // Allow authenticated users to update aura field (for giving/taking points)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aura']))
       );
       
       allow delete: if false;

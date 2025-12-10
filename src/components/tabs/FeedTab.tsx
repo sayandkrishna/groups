@@ -1,14 +1,36 @@
 import { motion } from 'framer-motion';
 import { History } from 'lucide-react';
-import { Transaction, UserListItem } from '../../types';
+import { Transaction, UserListItem, User } from '../../types';
 import FeedItem from '../FeedItem';
 
 interface FeedTabProps {
     feed: Transaction[];
     users: UserListItem[];
+    currentUser: User | null;
 }
 
-const FeedTab = ({ feed, users }: FeedTabProps) => {
+const FeedTab = ({ feed, users, currentUser }: FeedTabProps) => {
+    // Filter feed based on friend connections
+    const filteredFeed = feed.filter(transaction => {
+        if (!currentUser) return false;
+
+        const { senderId, receiverId } = transaction;
+        const friendIds = currentUser.friends || [];
+
+        // User is involved in the transaction
+        if (senderId === currentUser.uid || receiverId === currentUser.uid) {
+            return true;
+        }
+
+        // At least one party is a friend
+        if (friendIds.includes(senderId) || friendIds.includes(receiverId)) {
+            return true;
+        }
+
+        // Both are strangers - hide transaction
+        return false;
+    });
+
     return (
         <motion.div
             key="feed"
@@ -20,10 +42,10 @@ const FeedTab = ({ feed, users }: FeedTabProps) => {
             <h3 className="font-black text-xl mb-4 uppercase italic flex items-center gap-2">
                 <History size={20} /> Live Log
             </h3>
-            {feed.length === 0 ? (
+            {filteredFeed.length === 0 ? (
                 <div className="text-center py-10 opacity-50 font-mono">No aura detected yet.</div>
             ) : (
-                feed.map(item => <FeedItem key={item.id} item={item} users={users} />)
+                filteredFeed.map(item => <FeedItem key={item.id} item={item} users={users} />)
             )}
         </motion.div>
     );
